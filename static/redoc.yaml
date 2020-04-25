@@ -1,0 +1,991 @@
+openapi: 3.0.2
+info:
+  title: 'YaMDb API'
+  version: ''
+  description: |
+    запросы к API начинаются с `/api/v1/`
+
+    # Описание
+    Проект **YaMDb** собирает отзывы пользователей на произведения. Произведения делятся на категории: «Книги», «Фильмы», «Музыка».
+
+    # Алгоритм регистрации пользователей
+    1. Пользователь отправляет запрос с параметрами  `email` и `username` на `/auth/email/`.
+    2. **YaMDB** отправляет письмо с кодом подтверждения (`confirmation_code`) на адрес  `email` .
+    3. Пользователь отправляет запрос с параметрами `email` и `confirmation_code` на `/auth/token/`, в ответе на запрос ему приходит `token` (JWT-токен).
+    4. При желании пользователь отправляет PATCH-запрос на `/users/me/` и заполняет поля в своём профайле (описание полей — в документации).
+
+    # Пользовательские роли
+    - **Аноним** — может просматривать описания произведений, читать отзывы и комментарии.
+    - **Аутентифицированный пользователь** — может, как и **Аноним**, читать всё, дополнительно он может публиковать отзывы и ставить рейтинг произведениям (фильмам/книгам/песенкам), может комментировать чужие отзывы и ставить им оценки; может редактировать и удалять **свои** отзывы и комментарии.
+    - **Модератор** — те же права, что и у **Аутентифицированного пользователя** плюс право удалять **любые** отзывы и комментарии.
+    - **Администратор** — полные права на управление проектом и всем его содержимым. Может создавать и удалять категории и произведения. Может назначать роли пользователям.
+    - **Администратор Django** — те же права, что и у роли **Администратор**.
+
+
+servers:
+  - url: /api/v1/
+
+tags:
+  - name: REVIEWS
+    description: Отзывы
+  - name: COMMENTS
+    description: Комментарии к отзывам
+  - name: AUTH
+    description: Аутентификация
+  - name: USERS
+    description: Пользователи
+  - name: CATEGORIES
+    description: Категории (типы) произведений
+  - name: GENRES
+    description: Категории жанров
+  - name: OBJECTS
+    description: Произведения, к которым пишут отзывы (определённый фильм, книга или песенка).
+
+paths:
+  /reviews/:
+    get:
+      tags:
+        - REVIEWS
+      description: "Получить список всех отзывов. Права доступа: **Аутентифицированные пользователи.**"
+      responses:
+        200:
+          description: Список отзывов с пагинацией
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    count:
+                      type: number
+                    next:
+                      type: string
+                    previous:
+                      type: string
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Review'
+      security:
+      - auth:
+        - read:users,moderators,admins
+    post:
+      tags:
+        - REVIEWS
+      description: "Создать новый отзыв. Права доступа: **Аутентифицированные пользователи.**"
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Review'
+      responses:
+        200:
+          description: 'Новый отзыв'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+      security:
+      - auth:
+        - write:users,moderators,admins
+  /reviews/{id}/:
+    get:
+      tags:
+        - REVIEWS
+      description: "Получить отзыв по id. Права доступа: **Аутентифицированные пользователи.**"
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      responses:
+        200:
+          description: Отзыв
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+      - auth:
+        - read:users,moderators,admins
+        - write:users,moderators,admins
+    put:
+      tags:
+        - REVIEWS
+      description: 'Обновить отзыв по id. Права доступа: **Автор отзыва, модератор или администратор.**'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Review'
+      responses:
+        200:
+          description: Отзыв
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+      - auth:
+        - write:author,moderators,admins
+    patch:
+      tags:
+        - REVIEWS
+      description: "Частично обновить отзыв по id. Права доступа: **Автор отзыва, модератор или администратор.**"
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Review'
+      responses:
+        200:
+          description: Отзыв
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+      - auth:
+        - write:author,moderators,admins
+    delete:
+      tags:
+        - REVIEWS
+      description: Удалить отзыв по id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      responses:
+        204:
+          description: ''
+      security:
+      - auth:
+        - write:author,moderators,admins
+
+  /reviews/{review_id}/comments/:
+    get:
+      tags:
+        - COMMENTS
+      description: 'Получить список всех комментариев к отзыву по id'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      responses:
+        200:
+          description: Список комментариев с пагинацией
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    count:
+                      type: number
+                    next:
+                      type: string
+                    previous:
+                      type: string
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Comment'
+      security:
+      - auth:
+        - read:users,moderators,admins
+    post:
+      tags:
+        - COMMENTS
+      description: 'Создать новый комментарий для отзыва. Права доступа: **Аутентифицированные пользователи.**'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      - name: text
+        in: query
+        required: true
+        description: текст комментария
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema: {}
+          description: ''
+      security:
+      - auth:
+        - write:users,moderators,admins
+
+  /reviews/{review_id}/comments/{comment_id}/:
+    get:
+      tags:
+        - COMMENTS
+      description: 'Получить комментарий для отзыва по id. Права доступа: **Аутентифицированные пользователи.**'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      - name: comment_id
+        in: path
+        required: true
+        description: ID комментария
+        schema:
+          type: number
+      responses:
+        200:
+          content:
+            application/json:
+              schema: {}
+          description: ''
+      security:
+      - auth:
+        - write:users,moderators,admins
+    put:
+      tags:
+        - COMMENTS
+      description: 'Обновить комментарий к отзыву по id. Права доступа: **Автор комментария, модератор или администратор**.'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      - name: comment_id
+        in: path
+        required: true
+        description: ID комментария
+        schema:
+          type: number
+      responses:
+        200:
+          content:
+            application/json:
+              schema: {}
+          description: ''
+      security:
+      - auth:
+        - write:author,moderators,admins
+    patch:
+      tags:
+        - COMMENTS
+      description: 'Частично обновить комментарий к отзыву по id. Права доступа: **Автор комментария, модератор или администратор**.'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      - name: comment_id
+        in: path
+        required: true
+        description: ID комментария
+        schema:
+          type: number
+      responses:
+        200:
+          content:
+            application/json:
+              schema: {}
+          description: ''
+      security:
+      - auth:
+        - write:author,moderators,admins
+    delete:
+      tags:
+        - COMMENTS
+      description: 'Удалить комментарий к отзыву по id. Права доступа: **Автор комментария, модератор или администратор**.'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+      - name: comment_id
+        in: path
+        required: true
+        description: ID комментария
+        schema:
+          type: number
+      responses:
+        204:
+          description: ''
+      security:
+      - auth:
+        - write:author,moderators,admins
+
+  /auth/token/:
+    post:
+      tags:
+        - AUTH
+      description: Получение JWT-токена в обмен на email и confirmation_code.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - confirmation_code
+              properties:
+                email:
+                  type: string
+                confirmation_code:
+                  type: string
+                  writeOnly: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+          description: ''
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+      - auth:
+        - write:users,moderators,admins
+  /auth/email/:
+    post:
+      tags:
+        - AUTH
+      description: Отправление confirmation_code на переданный email.
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  email:
+                    type: string
+                required:
+                - email
+          description: ''
+      security:
+      - auth:
+        - write:users,moderators,admins
+
+  /users/:
+    get:
+      tags:
+        - USERS
+      description: "Получить список всех пользователей. Права доступа: **Администратор**"
+      parameters:
+      - name: search
+        in: query
+        description: username
+        schema:
+          type: string
+      responses:
+        200:
+          description: Список пользователей с пагинацией
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    count:
+                      type: number
+                    next:
+                      type: string
+                    previous:
+                      type: string
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/User'
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+    post:
+      tags:
+        - USERS
+      description: "Создать пользователя. Права доступа: **Администратор**"
+      parameters:
+      - name: user
+        in: query
+        description: Пользователь для фильтрации по подписчикам
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - username
+                - email
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                username:
+                  type: string
+                email:
+                  type: string
+      responses:
+        200:
+          description: Подписаться
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+  /users/{username}/:
+    get:
+      tags:
+        - USERS
+      description: "Получить пользователя по id. Права доступа: **Администратор**"
+      parameters:
+      - name: username
+        in: path
+        required: true
+        description: ID пользователя
+        schema:
+          type: number
+      - name: search
+        in: query
+        description: username
+        schema:
+          type: string
+      responses:
+        200:
+          description: Объект пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/User'
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+    patch:
+      tags:
+        - USERS
+      description: "Изменить данные пользователя по id. Права доступа: **Администратор.**"
+      parameters:
+      - name: username
+        in: path
+        required: true
+        description: ID пользователя
+        schema:
+          type: number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        200:
+          description: Пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+    delete:
+      tags:
+        - USERS
+      description: "Удалить пользователя по id. Права доступа: **Администратор.**"
+      parameters:
+      - name: username
+        in: path
+        required: true
+        description: ID пользователя
+        schema:
+          type: number
+      responses:
+        204:
+          description: ''
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+
+  /users/me/:
+    get:
+      tags:
+        - USERS
+      description: Получить данные своей учетной записи
+      responses:
+        200:
+          description: Объект своей учетной записи
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/User'
+      security:
+      - auth:
+        - read:author
+        - write:author
+    patch:
+      tags:
+        - USERS
+      description: Изменить данные своей учетной записи
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        200:
+          description: Пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+      - auth:
+        - read:author
+        - write:author
+
+  /categories/:
+    get:
+      tags:
+        - CATEGORIES
+      description: Получить список всех категорий
+      parameters: []
+      responses:
+        200:
+          description: Список категорий с пагинацией
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    count:
+                      type: number
+                    next:
+                      type: string
+                    previous:
+                      type: string
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Category'
+      security:
+      - auth:
+        - read:users,moderators,admins
+    post:
+      tags:
+        - CATEGORIES
+      description: "Создать категорию. Права доступа: **Администратор.**"
+      parameters: []
+      responses:
+        200:
+          description: Список категорий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+  /categories/{slug}/:
+    delete:
+      tags:
+        - CATEGORIES
+      description: "Удалить категорию. Права доступа: **Администратор.**"
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        description: Slug категории
+        schema:
+          type: string
+      responses:
+        204:
+          description: ''
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+
+  /review_objects/:
+    get:
+      tags:
+        - OBJECTS
+      description: Получить список всех объектов
+      parameters: []
+      responses:
+        200:
+          description: Список объектво с пагинацией
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    count:
+                      type: number
+                    next:
+                      type: string
+                    previous:
+                      type: string
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Object'
+      security:
+      - auth:
+        - read:users,moderators,admins
+        - write:users,moderators,admins
+    post:
+      tags:
+        - OBJECTS
+      description: "Создать произведение для отзывов. Права доступа: **Администратор**."
+      parameters: []
+      responses:
+        200:
+          description: Список объектов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Object'
+      security:
+      - auth:
+        - read:users,moderators,admins
+        - write:users,moderators,admins
+  /review_objects/{id}/:
+    delete:
+      tags:
+        - OBJECTS
+      description: "Удалить произведение. Права доступа: **Администратор**."
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID объекта
+        schema:
+          type: number
+      responses:
+        204:
+          description: ''
+      security:
+      - auth:
+        - read:users,moderators,admins
+        - write:users,moderators,admins
+
+  /genres/:
+    get:
+      tags:
+        - GENRES
+      description: Получить список всех жанров
+      parameters: []
+      responses:
+        200:
+          description: Список жанров с пагинацией
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    count:
+                      type: number
+                    next:
+                      type: string
+                    previous:
+                      type: string
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Genre'
+      security:
+      - auth:
+        - read:users,moderators,admins
+    post:
+      tags:
+        - GENRES
+      description: "Создать жанр. Права доступа: **Администратор**."
+      parameters: []
+      responses:
+        200:
+          description: Список жанров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Genre'
+      security:
+      - auth:
+        - read:users
+        - write:users
+
+  /genres/{slug}/:
+    delete:
+      tags:
+        - GENRES
+      description: "Удалить жанр. Права доступа: **Администратор**."
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        description: Slug жанра
+        schema:
+          type: string
+      responses:
+        204:
+          description: ''
+      security:
+      - auth:
+        - read:admins
+        - write:admins
+
+components:
+  schemas:
+    User:
+      title: Пользователь
+      type: object
+      description: Детальная информация о пользователе
+      required:
+          - username
+          - email
+      properties:
+        id:
+          type: integer
+          title: ID  пользователя
+          readOnly: true
+        first_name:
+          type: string
+          title: Имя
+        last_name:
+          type: string
+          title: Фамилия
+        username:
+          type: string
+          title: Никнейм
+        bio:
+          type: string
+          title: О себе
+        rating:
+          type: string
+          title: Рейтинг
+        email:
+          type: string
+          title: Адрес электронной почты
+        role:
+          type: string
+          description: "Администратор, модератор или пользователь"
+
+    Object:
+      title: Объект
+      type: object
+      properties:
+        title:
+          type: string
+          title: Название
+        year:
+          type: string
+          title: Год выпуска
+        genre:
+          type: array
+          items:
+            $ref: '#/components/schemas/Genre'
+        category:
+          $ref: '#/components/schemas/Category'
+
+    Genre:
+      title: Жанр
+      type: object
+      properties:
+        title:
+          type: string
+          title: Название жанра
+        slug:
+          type: string
+          title: Поле "slug"
+
+    Review:
+      title: Отзыв
+      type: object
+      description: Детальная информация отзыва
+      required:
+          - text
+          - object_id
+      properties:
+        id:
+          type: integer
+          title: ID  отзыва
+          readOnly: true
+        object_id:
+          type: number
+          title: ID произведения
+        text:
+          type: string
+          title: Текст отзыва
+        author:
+          type: string
+          title: username пользователя
+          readOnly: true
+        score:
+          type: integer
+          title: Оценка
+        pub_date:
+          type: string
+          format: date-time
+          title: Дата публикации отзыва
+          readOnly: true
+
+    ValidationError:
+      title: Ошибка валидации
+      type: object
+      properties:
+        field_name:
+          type: array
+          items:
+            type: string
+
+    Token:
+      title: Токен
+      type: object
+      properties:
+        token:
+          type: string
+          title: access токен
+
+    Comment:
+      title: Комментарий
+      type: object
+      description: Детальная информация комментария
+      required:
+          - text
+      properties:
+        id:
+          type: integer
+          title: ID  комментария
+          readOnly: true
+        text:
+          type: string
+          title: Текст комментария
+        rating:
+          type: number
+          title: Оценка полезности комментария
+        author:
+          type: string
+          title: username автора комментария
+          readOnly: true
+        pub_date:
+          type: string
+          format: date-time
+          title: Дата публикации комментария
+          readOnly: true
+
+    Category:
+      title: Категория
+      type: object
+      properties:
+        title:
+          type: string
+          title: Категория объекта
+        slug:
+          type: string
+          title: Поле "slug"
+
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: token
+      in: header
