@@ -1,0 +1,6 @@
+id,username,email,password
+100,bingobongo,bingobongo@yamdb.fake,pbkdf2_sha256$180000$WaZlwwN4WJ3G$oqGJZn8t4dvcIB2E38U3LaR8FTGq4kzXyrVLVkG8qVE=
+101,capt_obvious,capt_obvious@yamdb.fake,pbkdf2_sha256$180000$7GQBdS3ZAXng$gDiNkO/Gk6ovN1TUArJALPHDpFFXH1oMwZ7LnmAuI3A=
+102,faust,faust@yamdb.fake,pbkdf2_sha256$180000$m17rcSTlq7i8$1uY34hE8fOSMed8iYBDl1/tIuJqDU7laj9Pd+VnpI7Q=
+103,reviewer,reviewer@yamdb.fake,pbkdf2_sha256$180000$BHwTrWwqvUcg$ZaAjyO2zMWXambzrzEcPjceTCId9mhHWtJIbngNz27Y=
+104,angry,angry@yamdb.fake,pbkdf2_sha256$180000$SS3nXC8GvKAa$PWV3qCaY1a1ZKHsYoH2pNdlT2Y9Q+Zqr7C8aKK+33Os=
