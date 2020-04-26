@@ -42,11 +42,21 @@ tags:
     description: Произведения, к которым пишут отзывы (определённый фильм, книга или песенка).
 
 paths:
-  /reviews/:
+  /titles/{title_id}/reviews/:
+    parameters:
+      - name: title_id
+        in: path
+        required: true
+        description: ID объекта для оценки
+        schema:
+          type: number
     get:
       tags:
         - REVIEWS
-      description: "Получить список всех отзывов. Права доступа: **Аутентифицированные пользователи.**"
+      description: |
+        Получить список всех отзывов.
+
+        Права доступа: **Доступно без токена.**
       responses:
         200:
           description: Список отзывов с пагинацией
@@ -67,14 +77,15 @@ paths:
                       type: array
                       items:
                         $ref: '#/components/schemas/Review'
-      security:
-      - auth:
-        - read:users,moderators,admins
+        404:
+          description: Не найден объект оценки
     post:
       tags:
         - REVIEWS
-      description: "Создать новый отзыв. Права доступа: **Аутентифицированные пользователи.**"
-      parameters: []
+      description: |
+        Создать новый отзыв.
+
+        Права доступа: **Аутентифицированные пользователи.**
       requestBody:
         content:
           application/json:
@@ -87,132 +98,124 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Review'
-      security:
-      - auth:
-        - write:users,moderators,admins
-  /reviews/{id}/:
-    get:
-      tags:
-        - REVIEWS
-      description: "Получить отзыв по id. Права доступа: **Аутентифицированные пользователи.**"
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      responses:
-        200:
-          description: Отзыв
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Review'
         400:
           description: Ошибка
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
+        401:
+          description: Необходим JWT токен
+        404:
+          description: Не найден объект оценки
       security:
-      - auth:
-        - read:users,moderators,admins
-        - write:users,moderators,admins
-    put:
-      tags:
-        - REVIEWS
-      description: 'Обновить отзыв по id. Права доступа: **Автор отзыва, модератор или администратор.**'
-      parameters:
-      - name: id
+      - jwt_auth:
+        - write:user,moderator,admin
+  /titles/{title_id}/reviews/{review_id}/:
+    parameters:
+      - name: title_id
         in: path
         required: true
-        description: ID отзыва
+        description: ID объекта для оценки
         schema:
           type: number
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Review'
-      responses:
-        200:
-          description: Отзыв
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Review'
-        400:
-          description: Ошибка
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
-      security:
-      - auth:
-        - write:author,moderators,admins
-    patch:
-      tags:
-        - REVIEWS
-      description: "Частично обновить отзыв по id. Права доступа: **Автор отзыва, модератор или администратор.**"
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Review'
-      responses:
-        200:
-          description: Отзыв
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Review'
-        400:
-          description: Ошибка
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
-      security:
-      - auth:
-        - write:author,moderators,admins
-    delete:
-      tags:
-        - REVIEWS
-      description: Удалить отзыв по id
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      responses:
-        204:
-          description: ''
-      security:
-      - auth:
-        - write:author,moderators,admins
-
-  /reviews/{review_id}/comments/:
-    get:
-      tags:
-        - COMMENTS
-      description: 'Получить список всех комментариев к отзыву по id'
-      parameters:
       - name: review_id
         in: path
         required: true
         description: ID отзыва
         schema:
           type: number
+    get:
+      tags:
+        - REVIEWS
+      description: |
+        Получить отзыв по id.
+
+        Права доступа: **Доступно без токена.**
+      responses:
+        200:
+          description: Отзыв
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        404:
+          description: Не найден объект оценки
+    patch:
+      tags:
+        - REVIEWS
+      description: |
+        Частично обновить отзыв по id.
+
+        Права доступа: **Автор отзыва, модератор или администратор.**
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Review'
+      responses:
+        200:
+          description: Отзыв
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        401:
+          description: Необходим JWT токен
+        403:
+          description: Нет прав доступа
+        404:
+          description: Не найден объект оценки
+      security:
+      - jwt_auth:
+        - write:user,moderator,admin
+    delete:
+      tags:
+        - REVIEWS
+      description: |
+        Удалить отзыв по id
+
+        Права доступа: **Автор отзыва, модератор или администратор.**
+      responses:
+        204:
+          description: ''
+        401:
+          description: Необходим JWT токен
+        403:
+          description: Нет прав доступа
+        404:
+          description: Не найден объект оценки
+      security:
+      - jwt_auth:
+        - write:user,moderator,admin
+
+  /titles/{title_id}/reviews/{review_id}/comments/:
+    parameters:
+      - name: title_id
+        in: path
+        required: true
+        description: ID объекта для оценки
+        schema:
+          type: number
+      - name: review_id
+        in: path
+        required: true
+        description: ID отзыва
+        schema:
+          type: number
+    get:
+      tags:
+        - COMMENTS
+      description: |
+        Получить список всех комментариев к отзыву по id
+
+        Права доступа: **Доступно без токена.**
       responses:
         200:
           description: Список комментариев с пагинацией
@@ -233,138 +236,130 @@ paths:
                       type: array
                       items:
                         $ref: '#/components/schemas/Comment'
-      security:
-      - auth:
-        - read:users,moderators,admins
+        404:
+          description: Не найден объект оценки или отзыв
     post:
       tags:
         - COMMENTS
-      description: 'Создать новый комментарий для отзыва. Права доступа: **Аутентифицированные пользователи.**'
-      parameters:
+      description: |
+        Создать новый комментарий для отзыва.
+
+        Права доступа: **Аутентифицированные пользователи.**
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        401:
+          description: Необходим JWT токен
+        404:
+          description: Не найден объект оценки или отзыв
+      security:
+      - jwt_auth:
+        - write:user,moderator,admin
+
+  /titles/{title_id}/reviews/{review_id}/comments/{comment_id}/:
+    parameters:
+      - name: title_id
+        in: path
+        required: true
+        description: ID объекта для оценки
+        schema:
+          type: number
       - name: review_id
         in: path
         required: true
         description: ID отзыва
         schema:
           type: number
-      - name: text
-        in: query
+      - name: comment_id
+        in: path
         required: true
-        description: текст комментария
+        description: ID комментария
         schema:
-          type: string
-      responses:
-        200:
-          content:
-            application/json:
-              schema: {}
-          description: ''
-      security:
-      - auth:
-        - write:users,moderators,admins
-
-  /reviews/{review_id}/comments/{comment_id}/:
+          type: number
     get:
       tags:
         - COMMENTS
-      description: 'Получить комментарий для отзыва по id. Права доступа: **Аутентифицированные пользователи.**'
-      parameters:
-      - name: review_id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      - name: comment_id
-        in: path
-        required: true
-        description: ID комментария
-        schema:
-          type: number
+      description: |
+        Получить комментарий для отзыва по id.
+
+        Права доступа: **Доступно без токена.**
       responses:
         200:
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/Comment'
           description: ''
-      security:
-      - auth:
-        - write:users,moderators,admins
-    put:
-      tags:
-        - COMMENTS
-      description: 'Обновить комментарий к отзыву по id. Права доступа: **Автор комментария, модератор или администратор**.'
-      parameters:
-      - name: review_id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      - name: comment_id
-        in: path
-        required: true
-        description: ID комментария
-        schema:
-          type: number
-      responses:
-        200:
-          content:
-            application/json:
-              schema: {}
-          description: ''
-      security:
-      - auth:
-        - write:author,moderators,admins
+        404:
+          description: Не найден объект оценки, отзыв или комментарий
     patch:
       tags:
         - COMMENTS
-      description: 'Частично обновить комментарий к отзыву по id. Права доступа: **Автор комментария, модератор или администратор**.'
-      parameters:
-      - name: review_id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      - name: comment_id
-        in: path
-        required: true
-        description: ID комментария
-        schema:
-          type: number
+      description: |
+        Частично обновить комментарий к отзыву по id.
+
+        Права доступа: **Автор комментария, модератор или администратор**.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
       responses:
         200:
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/Comment'
           description: ''
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        401:
+          description: Необходим JWT токен
+        403:
+          description: Нет прав доступа
+        404:
+          description: Не найден объект оценки, отзыв или комментарий
       security:
-      - auth:
-        - write:author,moderators,admins
+      - jwt_auth:
+        - write:user,moderator,admin
     delete:
       tags:
         - COMMENTS
-      description: 'Удалить комментарий к отзыву по id. Права доступа: **Автор комментария, модератор или администратор**.'
-      parameters:
-      - name: review_id
-        in: path
-        required: true
-        description: ID отзыва
-        schema:
-          type: number
-      - name: comment_id
-        in: path
-        required: true
-        description: ID комментария
-        schema:
-          type: number
+      description: |
+        Удалить комментарий к отзыву по id.
+
+        Права доступа: **Автор комментария, модератор или администратор**.
       responses:
         204:
           description: ''
+        401:
+          description: Необходим JWT токен
+        403:
+          description: Нет прав доступа
+        404:
+          description: Не найден объект оценки, отзыв или комментарий
       security:
-      - auth:
-        - write:author,moderators,admins
+      - jwt_auth:
+        - write:user,moderator,admin
 
   /auth/token/:
     post:
@@ -397,9 +392,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
-      security:
-      - auth:
-        - write:users,moderators,admins
   /auth/email/:
     post:
       tags:
@@ -426,9 +418,6 @@ paths:
                 required:
                 - email
           description: ''
-      security:
-      - auth:
-        - write:users,moderators,admins
 
   /users/:
     get:
@@ -489,6 +478,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         401:
           description: Необходим JWT токен
         403:
@@ -754,7 +749,7 @@ paths:
             type: string
         - name: name
           in: query
-          description: фильтрует по названию объекта
+          description: фильтрует по части названия объекта
           schema:
             type: string
         - name: year
@@ -816,7 +811,14 @@ paths:
       - jwt_auth:
         - read:admin
         - write:admin
-  /titles/{id}/:
+  /titles/{titles_id}/:
+    parameters:
+      - name: titles_id
+        in: path
+        required: true
+        description: ID объекта
+        schema:
+          type: number
     get:
       tags:
         - TITLES
@@ -825,13 +827,6 @@ paths:
 
 
         Права доступа: **Доступно без токена**
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID объекта
-        schema:
-          type: number
       responses:
         200:
           description: Объект
@@ -839,6 +834,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Title'
+        404:
+          description: Объект не найден
     patch:
       tags:
         - TITLES
@@ -846,14 +843,7 @@ paths:
         Обновить информацию об объекте
 
 
-        Права доступа: **Доступно без токена**
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID объекта
-        schema:
-          type: number
+        Права доступа: **Администратор**
       requestBody:
         content:
           application/json:
@@ -866,6 +856,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Title'
+        401:
+          description: Необходим JWT токен
+        403:
+          description: Нет прав доступа
+        404:
+          description: Объект не найден
+      security:
+      - jwt_auth:
+        - read:admin
+        - write:admin
     delete:
       tags:
         - TITLES
@@ -873,13 +873,6 @@ paths:
         Удалить произведение.
 
         Права доступа: **Администратор**.
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID объекта
-        schema:
-          type: number
       responses:
         204:
           description: ''
@@ -887,6 +880,8 @@ paths:
           description: Необходим JWT токен
         403:
           description: Нет прав доступа
+        404:
+          description: Объект не найден
       security:
       - jwt_auth:
         - read:admin
@@ -977,6 +972,8 @@ paths:
           description: Необходим JWT токен
         403:
           description: Нет прав доступа
+        404:
+          description: Жанр не найден
       security:
       - auth:
         - read:admin
@@ -1029,7 +1026,11 @@ components:
           title: Год выпуска
         rating:
           type: number
-          title: Рейтинг на основе отзывов
+          readOnly: True
+          title: Рейтинг на основе отзывов, если отзывов — `None`
+        description:
+          type: string
+          title: Описание
         genre:
           type: array
           items:
@@ -1048,9 +1049,9 @@ components:
         year:
           type: string
           title: Год выпуска
-        rating:
-          type: number
-          title: Рейтинг на основе отзывов
+        description:
+          type: string
+          title: Описание
         genre:
           type: array
           items:
@@ -1079,15 +1080,12 @@ components:
       description: Детальная информация отзыва
       required:
           - text
-          - object_id
+          - score
       properties:
         id:
           type: integer
           title: ID  отзыва
           readOnly: true
-        object_id:
-          type: number
-          title: ID произведения
         text:
           type: string
           title: Текст отзыва
@@ -1098,6 +1096,8 @@ components:
         score:
           type: integer
           title: Оценка
+          minimum: 1
+          maximum: 10
         pub_date:
           type: string
           format: date-time
@@ -1135,9 +1135,6 @@ components:
         text:
           type: string
           title: Текст комментария
-        rating:
-          type: number
-          title: Оценка полезности комментария
         author:
           type: string
           title: username автора комментария
